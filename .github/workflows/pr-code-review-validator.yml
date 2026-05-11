@@ -1,0 +1,106 @@
+name: PR Code Review Validator
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled]
+
+concurrency:
+  group: pr-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  actions: read
+
+jobs:
+  review:
+    name: Code Review
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event.pull_request.draft == false
+
+    env:
+      ANTHROPIC_BEDROCK_BASE_URL: ${{ secrets.BEDROCK_BASE_URL }}
+      ANTHROPIC_CUSTOM_HEADERS: "x-portkey-api-key:${{ secrets.PORTKEY_API_KEY }}\nx-portkey-provider:@aws-bedrock-use2"
+      CLAUDE_CODE_USE_BEDROCK: "1"
+      CLAUDE_CODE_SKIP_BEDROCK_AUTH: "1"
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      BASE_REF: ${{ github.event.pull_request.base.ref }}
+      BEFORE_SHA: ${{ github.event.before }}
+      AFTER_SHA: ${{ github.event.after }}
+      GITHUB_EVENT_ACTION: ${{ github.event.action }}
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
+      - name: Download prior artifact
+        id: download-artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: pr-${{ github.event.pull_request.number }}-violations
+          path: .review-artifacts/
+        continue-on-error: true
+
+      - name: Detect review mode
+        id: detect-mode
+        run: bash scripts/detect-review-mode.sh
+        env:
+          PUSH_COUNT: ${{ steps.download-artifact.outcome == 'success' && '0' || '1' }}
+
+      - name: Compute push count
+        id: push-count
+        run: |
+          if [[ -f ".review-artifacts/violations.json" ]]; then
+            count=$(jq '.push_count // 0' .review-artifacts/violations.json)
+            echo "count=$((count + 1))" >> "$GITHUB_OUTPUT"
+          else
+            echo "count=1" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Cleanup prior reviews
+        run: bash scripts/cleanup-prior-reviews.sh
+
+      - name: Run review pipeline
+        id: pipeline
+        run: bash scripts/run-review-pipeline.sh
+        env:
+          REVIEW_MODE: ${{ steps.detect-mode.outputs.review_mode }}
+          CODE_FILES_JSON: ${{ steps.detect-mode.outputs.code_files_json }}
+          TRACK1_FILES_JSON: ${{ steps.detect-mode.outputs.track1_files_json }}
+          TRACK2_FILES_JSON: ${{ steps.detect-mode.outputs.track2_files_json }}
+          PRIOR_VIOLATIONS_JSON: ${{ steps.detect-mode.outputs.prior_violations_json }}
+          UNTOUCHED_VIOLATIONS_JSON: ${{ steps.detect-mode.outputs.untouched_violations_json }}
+          PUSH_COUNT: ${{ steps.push-count.outputs.count }}
+
+      - name: Post review
+        if: always()
+        run: bash scripts/post-review.sh
+        env:
+          PUSH_COUNT: ${{ steps.push-count.outputs.count }}
+
+      - name: Upload violations artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-${{ github.event.pull_request.number }}-violations
+          path: .review-artifacts/violations.json
+          retention-days: 90
+          overwrite: true
+          if-no-files-found: ignore

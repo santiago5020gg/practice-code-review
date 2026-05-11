@@ -18,9 +18,9 @@ readonly ARTIFACT_DIR=".review-artifacts"
 readonly ARTIFACT_FILE="${ARTIFACT_DIR}/violations.json"
 
 # Models
-readonly MODEL_CLASSIFY="haiku"
-readonly MODEL_VALIDATE="sonnet"
-readonly MODEL_SYNTHESIZE="opus"
+readonly MODEL_CLASSIFY="us.anthropic.claude-haiku-4-5-20251001-v1:0"
+readonly MODEL_VALIDATE="us.anthropic.claude-sonnet-4-6"
+readonly MODEL_SYNTHESIZE="us.anthropic.claude-opus-4-6-v1"
 
 # Returns 0 if the file has a code extension, 1 otherwise
 is_code_file() {

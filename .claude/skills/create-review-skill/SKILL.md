@@ -127,3 +127,82 @@ Display summary:
   
   This skill will activate on the next PR that touches matching files.
 ```
+
+## Edit Mode
+
+### Step 1 — Load & Display
+
+Read the existing `.claude/skills/<skill-name>/SKILL.md` and display:
+
+```
+Existing skill: <skill-name>
+Description: <from frontmatter>
+
+Scope:
+  Applies to: <globs>
+  Excludes: <exclusions>
+
+Rules:
+  1. <Name> (Critical)
+  2. <Name> (Recommended)
+  ...
+
+Reference doc: exists / not present
+```
+
+### Step 2 — Ask What to Change
+
+Ask: "What would you like to change?" Present options:
+
+1. Add new rule(s)
+2. Modify an existing rule (change severity, update examples, refine description)
+3. Remove a rule
+4. Change scope (paths/extensions/excludes)
+5. Add or update reference.md
+
+The user can select multiple.
+
+### Step 3 — Guided Edit
+
+For each selected action:
+
+**Add new rule:** Follow Create Mode Step 2 questions scoped to just the new rule, then integrate it into the existing rules (assign next rule number).
+
+**Modify a rule:** Ask which rule (by number or name), then ask what to change. Show old → new for confirmation.
+
+**Remove a rule:** Ask which rule, confirm removal, renumber remaining rules.
+
+**Change scope:** Show current scope, ask what to add/remove/replace.
+
+**Add/update reference.md:** Ask what content to include (extended examples, edge cases, anti-patterns).
+
+### Step 4 — Present Changes
+
+Show a summary of what changed:
+
+```
+Changes to <skill-name>:
+  [+] Added Rule 4: <Name> (Recommended)
+  [~] Modified Rule 2: severity Critical → Recommended
+  [-] Removed Rule 3: <Name>
+  [~] Scope: added `src/hooks/**`
+```
+
+Ask: "Apply these changes?"
+
+### Step 5 — User Confirms
+
+Wait for approval. If changes requested, return to Step 3.
+
+### Step 6 — Write, Validate & Commit
+
+Update the SKILL.md file with all changes.
+Run the same structural validation as Create Mode Step 6.
+Commit: `feat: update <skill-name> code review skill`
+
+Display:
+```
+✓ Skill updated: .claude/skills/<skill-name>/SKILL.md
+  Changes: <summary of what changed>
+  Rules: N rules (X Critical, Y Recommended)
+```

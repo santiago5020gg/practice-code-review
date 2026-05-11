@@ -24,3 +24,106 @@ When invoked, determine the mode:
    - If existing skills were found, briefly list them and ask: "Would you like to edit an existing skill, or create a new one?"
    - If no skills exist, ask: "What do you want the code review to check for?"
    - Enter the appropriate mode based on the answer
+
+## Create Mode
+
+### Step 1 — Gather Intent
+
+Ask the user: "Describe what you want the code review to check for."
+
+Accept any free-text description. Examples of valid inputs:
+- "I want to ensure all API calls use error boundaries"
+- "No console.log in production code"
+- "All components must have prop types defined"
+- "Database queries must use parameterized queries"
+
+### Step 2 — Clarifying Questions
+
+Ask questions ONE AT A TIME (minimum 2 before proposing). Adapt to context but cover:
+
+1. **File scope:** "What file types or paths should this apply to?" Offer common patterns as choices:
+   - `**/*.ts` / `**/*.tsx` (all TypeScript)
+   - `src/api/**` / `pages/api/**` (API routes)
+   - `src/components/**` (React components)
+   - Custom pattern (let user specify)
+
+2. **Violation boundary:** "What exactly counts as a violation? Are there cases that look similar but should be allowed?"
+
+3. **Severity:** "Should violations block the PR (Critical) or just suggest improvements (Recommended)?"
+   - Critical = PR cannot merge until fixed
+   - Recommended = Shows as a suggestion, does not block
+
+4. **Exceptions:** "Are there cases where this rule should NOT fire?" Common exceptions:
+   - Test files (`*.test.*`, `*.spec.*`)
+   - Generated code
+   - Third-party vendored files
+   - Specific directories
+
+5. **Fix example:** "Can you show me what the ideal fix looks like? (paste a code snippet if possible)"
+
+Stop asking when you have enough to fully define the rules. Typically 2-4 questions suffice.
+
+### Step 3 — Propose Skill Definition
+
+Present the complete skill structure for approval:
+
+```
+Proposed skill: <skill-name>
+
+Scope:
+  Applies to: <glob patterns>
+  Excludes: <exclusion patterns>
+  Extensions: <list>
+
+Rules:
+  Rule 1: <Name>
+    Severity: Critical | Recommended
+    Violation: <what triggers>
+    Correct: <what's acceptable>
+    Example violation: <code>
+    Example fix: <code>
+
+  Rule 2: ...
+
+Reference doc needed: Yes/No (reason)
+```
+
+Ask: "Does this look right? I can adjust any part before generating the files."
+
+### Step 4 — User Confirms
+
+Wait for explicit approval ("yes", "looks good", "go ahead", etc.).
+If the user requests changes, update the proposal and re-present.
+
+### Step 5 — Generate Files
+
+Write `.claude/skills/<skill-name>/SKILL.md` using the SKILL.md Template (see below).
+If reference.md was approved, also generate it.
+
+### Step 6 — Structural Validation
+
+After writing, verify the generated file passes ALL checks:
+
+1. YAML frontmatter is parseable with required fields (name, description, when_to_use)
+2. `name` field is kebab-case and matches the directory name
+3. `## Scope` section exists with at least one glob pattern
+4. At least one `### Rule N:` heading exists
+5. Each rule has ALL subsections: Severity, Description, Violation, Correct, Example violation, Example fix
+6. Severity values are exactly "Critical" or "Recommended"
+7. Code examples use language-specific fences (not bare ```)
+8. No duplicate rule numbers
+
+If any check fails: report it, fix inline, re-validate.
+
+### Step 7 — Commit and Summarize
+
+Commit: `feat: add <skill-name> code review skill`
+
+Display summary:
+```
+✓ Skill created: .claude/skills/<skill-name>/SKILL.md
+  Rules: N rules (X Critical, Y Recommended)
+  Scope: <paths>
+  
+  This skill will activate on the next PR that touches matching files.
+```

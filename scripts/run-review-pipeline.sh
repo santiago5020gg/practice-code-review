@@ -70,6 +70,13 @@ SKIPJSON
     return 1
   fi
 
+  echo "--- extracted output (first 1000 chars) ---"
+  head -c 1000 "$OUTPUT_FILE" || true
+  echo ""
+  echo "--- raw CLI output (first 1000 chars) ---"
+  head -c 1000 "$raw_output" || true
+  echo ""
+
   if ! jq -e '.verdict' "$OUTPUT_FILE" > /dev/null 2>&1; then
     echo "ERROR: Output missing 'verdict' field"
     return 1

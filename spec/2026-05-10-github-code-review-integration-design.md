@@ -24,10 +24,12 @@ You do NOT enforce any specific coding rules yourself — validation is fully de
 
 ### Connection to Claude (via Portkey + Bedrock)
 
-**Required GitHub Secrets:**
-- `BEDROCK_BASE_URL` — Portkey gateway URL pointing to Bedrock
-- `PORTKEY_API_KEY` — API key for Portkey authentication
+**Required GitHub Secrets (set as Repository Secrets, NOT Environment Secrets):**
+- `BEDROCK_BASE_URL` — Portkey gateway URL (NOT a raw Bedrock endpoint). This is the URL Portkey provides for routing requests to Bedrock. Must be copied verbatim from a working deployment.
+- `PORTKEY_API_KEY` — API key from Portkey dashboard. A 403 "Forbidden" error means this key is invalid or the base URL is wrong.
 - `GITHUB_TOKEN` — Auto-provided by GitHub Actions (repo scope)
+
+**Deployment note:** When setting up a new repository, copy both `BEDROCK_BASE_URL` and `PORTKEY_API_KEY` directly from the working reference repository's secrets. Do NOT retype manually — a single character difference causes silent auth failures that manifest as 3-minute timeouts.
 
 **Environment variables set in the workflow:**
 
@@ -44,10 +46,12 @@ CLAUDE_CODE_SKIP_BEDROCK_AUTH: "1"
 claude --print --model <model> --output-format json < prompt-file.txt > output.json
 ```
 
-**Models used:**
+**Models used (short names only — Portkey resolves to Bedrock model IDs):**
 - `haiku` → Classification stage (Stage 1) + Track 2 full validation
 - `sonnet` → Validation sub-agents (Stage 2) + Track 1 verification
 - `opus` → Synthesis stage (Stage 3, only when violations found)
+
+**Important:** Always use short model names (`haiku`, `sonnet`, `opus`) in CLI invocations. The Portkey gateway resolves these to the appropriate Bedrock model ARNs. Using full model IDs (e.g., `claude-haiku-4-5-20251001`, `us.anthropic.claude-haiku-4-5-20251001-v1:0`) will cause 400 errors from Portkey.
 
 ### Trigger
 
@@ -126,7 +130,15 @@ b. Configure environment variables for Portkey → Bedrock connection:
    - `CLAUDE_CODE_USE_BEDROCK` = `"1"`
    - `CLAUDE_CODE_SKIP_BEDROCK_AUTH` = `"1"`
 c. Invoke CLI with: `claude --print --model <model> --output-format json < prompt.txt > output.json`
-d. Parse output using multi-strategy JSON extraction (direct JSON, `.result` field, content blocks array, embedded JSON in text).
+   - Models MUST use short names: `haiku`, `sonnet`, `opus`. Do NOT use full Bedrock model IDs (e.g., `us.anthropic.claude-haiku-4-5-20251001-v1:0`) — Portkey resolves short names internally. Full IDs cause 400 "invalid model identifier" errors.
+   - The `--print` flag produces non-interactive output but does NOT disable tool use — the model can still use Bash, Read, Agent tools and execute multiple turns.
+d. Parse output using multi-strategy JSON extraction. The CLI returns a JSON envelope: `{"type":"result","result":"<model response string>"}`. The `.result` field contains the model's text response which MAY be wrapped in markdown code fences (`` ```json ... ``` ``). Extraction strategies (applied in order):
+   1. Direct JSON — the file itself is valid JSON with a `verdict` field
+   2. CLI envelope — extract `.result` field, strip markdown fences if present, parse as JSON
+   3. Content blocks array — extract from `.content[0].text`
+   4. Embedded JSON in text — find first `{` or `[` that parses as valid JSON
+   
+   **Critical:** The model may wrap its JSON response in `` ```json `` fences despite being instructed not to. The extraction layer MUST handle this defensively by stripping fences before parsing.
 
 ### 3. Review Mode Detection (`detect-review-mode.sh`)
 
@@ -246,7 +258,10 @@ On subsequent pushes, the system MUST only re-validate files that changed and ca
 - Timeouts must not leave the PR in an unreviewed state (fail-closed applies).
 
 ### 7. Output Format Resilience
-The system must handle multiple Claude CLI output formats (direct JSON, envelope with `.result`, content blocks array, embedded JSON in text). Four extraction strategies applied in order until one succeeds.
+The system must handle multiple Claude CLI output formats. The CLI wraps model responses in a JSON envelope (`{"type":"result","result":"..."}`) where the `.result` field is a string. Models frequently wrap their JSON output in markdown code fences (`` ```json ... ``` ``) despite explicit instructions not to. The extraction layer MUST:
+- Strip markdown fences from the `.result` string before JSON parsing
+- Apply four strategies in order until one succeeds: direct JSON, envelope `.result` (with fence stripping), content blocks array, embedded JSON in text
+- Never assume the model will follow output format instructions perfectly
 
 ### 8. Marker-Based Identification
 All review bodies and inline comments MUST contain the marker: `<!-- pr-code-review-validator -->`. This marker is used for cleanup identification in subsequent runs.
@@ -256,6 +271,18 @@ Artifacts must be valid JSON, include the SHA of the commit that produced them, 
 
 ### 10. No Skill-Specific Logic in Infrastructure
 Shell scripts and the workflow file must not contain skill-specific rules. All domain knowledge lives in skill files (`.claude/skills/`) and agent prompts. The infrastructure only knows about "domains" and "sub-agents", not specific rules.
+
+### 11. Secrets Validation
+The `BEDROCK_BASE_URL` and `PORTKEY_API_KEY` secrets MUST be identical across all repositories using this pipeline. A 403 "Portkey Error: Forbidden" indicates an invalid API key or mismatched base URL. When deploying to a new repository:
+- Copy secrets verbatim from the working reference repository (no manual retyping)
+- Both secrets must be set as Repository Secrets (not Environment Secrets)
+- The `BEDROCK_BASE_URL` must be the Portkey gateway URL, NOT a raw Bedrock endpoint
+
+### 12. Debug Observability
+CLI invocations MUST capture stderr to a log file and print the first 500-1000 characters of raw output on failure. Never use `2>/dev/null` on CLI calls — silent failures cause 3-minute timeout hangs with no diagnostic information. On failure, the pipeline must log:
+- The actual error message from the CLI (stderr)
+- The first 500+ chars of raw output (to see partial responses)
+- Key environment variable presence (not values) for debugging
 
 ---
 

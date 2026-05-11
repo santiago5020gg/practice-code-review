@@ -18,7 +18,21 @@ extract_json() {
     local result_type
     result_type=$(jq -r '.result | type' "$raw_file")
     if [[ "$result_type" == "string" ]]; then
-      jq -r '.result' "$raw_file" | jq '.' > "$out_file" 2>/dev/null && return 0
+      local result_text
+      result_text=$(jq -r '.result' "$raw_file")
+      # Try direct parse first
+      echo "$result_text" | jq '.' > "$out_file" 2>/dev/null && return 0
+      # Strip markdown code fences and retry
+      local stripped
+      stripped=$(echo "$result_text" | sed -n '/^```json/,/^```$/p' | sed '1d;$d')
+      if [[ -n "$stripped" ]]; then
+        echo "$stripped" | jq '.' > "$out_file" 2>/dev/null && return 0
+      fi
+      # Try stripping any ``` fences (not just ```json)
+      stripped=$(echo "$result_text" | sed -n '/^```/,/^```$/p' | sed '1d;$d')
+      if [[ -n "$stripped" ]]; then
+        echo "$stripped" | jq '.' > "$out_file" 2>/dev/null && return 0
+      fi
     else
       jq '.result' "$raw_file" > "$out_file"
       return 0

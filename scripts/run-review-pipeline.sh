@@ -49,9 +49,19 @@ SKIPJSON
   echo "$prompt" > "$prompt_file"
 
   local raw_output="$ARTIFACT_DIR/raw-output-full.json"
+  local stderr_log="$ARTIFACT_DIR/cli-stderr.log"
   echo "Invoking Claude Code CLI (model: $MODEL_CLASSIFY, timeout: ${TIMEOUT_FULL_PIPELINE}s)..."
-  if ! timeout "$TIMEOUT_FULL_PIPELINE" claude --print --model "$MODEL_CLASSIFY" --output-format json < "$prompt_file" > "$raw_output" 2>/dev/null; then
+  echo "DEBUG: ANTHROPIC_BEDROCK_BASE_URL=${ANTHROPIC_BEDROCK_BASE_URL:-unset}"
+  echo "DEBUG: CLAUDE_CODE_USE_BEDROCK=${CLAUDE_CODE_USE_BEDROCK:-unset}"
+  echo "DEBUG: CLAUDE_CODE_SKIP_BEDROCK_AUTH=${CLAUDE_CODE_SKIP_BEDROCK_AUTH:-unset}"
+  echo "DEBUG: ANTHROPIC_CUSTOM_HEADERS=${ANTHROPIC_CUSTOM_HEADERS:-unset}"
+  if ! timeout "$TIMEOUT_FULL_PIPELINE" claude --print --model "$MODEL_CLASSIFY" --output-format json < "$prompt_file" > "$raw_output" 2>"$stderr_log"; then
     echo "ERROR: CLI invocation failed or timed out"
+    echo "--- stderr output ---"
+    cat "$stderr_log" || true
+    echo "--- raw output (first 500 chars) ---"
+    head -c 500 "$raw_output" || true
+    echo ""
     return 1
   fi
 
@@ -59,6 +69,13 @@ SKIPJSON
     echo "ERROR: Failed to extract valid JSON from CLI output"
     return 1
   fi
+
+  echo "--- extracted output (first 1000 chars) ---"
+  head -c 1000 "$OUTPUT_FILE" || true
+  echo ""
+  echo "--- raw CLI output (first 1000 chars) ---"
+  head -c 1000 "$raw_output" || true
+  echo ""
 
   if ! jq -e '.verdict' "$OUTPUT_FILE" > /dev/null 2>&1; then
     echo "ERROR: Output missing 'verdict' field"
@@ -101,7 +118,7 @@ run_incremental_pipeline() {
     echo "$prompt" > "$prompt_file"
 
     local raw_output="$ARTIFACT_DIR/raw-output-track1.json"
-    if timeout "$TIMEOUT_TRACK1_VERIFY" claude --print --model "$MODEL_VALIDATE" --output-format json < "$prompt_file" > "$raw_output" 2>/dev/null; then
+    if timeout "$TIMEOUT_TRACK1_VERIFY" claude --print --model "$MODEL_VALIDATE" --output-format json < "$prompt_file" > "$raw_output"; then
       local extracted="$ARTIFACT_DIR/extracted-track1.json"
       if extract_json "$raw_output" "$extracted" && jq -e '.verified' "$extracted" > /dev/null 2>&1; then
         track1_result=$(jq -c '.verified' "$extracted")
@@ -131,7 +148,7 @@ run_incremental_pipeline() {
     echo "$prompt" > "$prompt_file"
 
     local raw_output="$ARTIFACT_DIR/raw-output-track2.json"
-    if timeout "$TIMEOUT_FULL_PIPELINE" claude --print --model "$MODEL_CLASSIFY" --output-format json < "$prompt_file" > "$raw_output" 2>/dev/null; then
+    if timeout "$TIMEOUT_FULL_PIPELINE" claude --print --model "$MODEL_CLASSIFY" --output-format json < "$prompt_file" > "$raw_output"; then
       local extracted="$ARTIFACT_DIR/extracted-track2.json"
       if extract_json "$raw_output" "$extracted" && jq -e '.verdict' "$extracted" > /dev/null 2>&1; then
         track2_violations=$(jq -c '.inline_comments // []' "$extracted")

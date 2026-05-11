@@ -283,3 +283,54 @@ Skill names MUST be:
 - 2-4 words typical
 
 Examples: `no-console-log`, `api-error-boundaries`, `parameterized-queries`, `react-hooks-rules`, `no-hardcoded-secrets`
+
+## Structural Validation Checklist
+
+After generating or editing a skill file, verify ALL of these. Fix any failures inline before committing.
+
+| # | Check | How to verify |
+|---|-------|---------------|
+| 1 | Frontmatter parseable | Has opening and closing `---`, contains `name`, `description`, `when_to_use` |
+| 2 | Name matches directory | `name` field in frontmatter == directory name under `.claude/skills/` |
+| 3 | Scope section exists | File contains `## Scope` with at least one glob pattern |
+| 4 | Has rules | At least one `### Rule N:` heading exists |
+| 5 | Rules complete | Each rule has: Severity, Description, Violation, Correct, Example violation, Example fix |
+| 6 | Severity valid | Every Severity line is exactly "Critical" or "Recommended" |
+| 7 | Code fences have language | No bare ``` — all code fences specify a language (e.g., ```typescript) |
+| 8 | No duplicate numbers | Rule numbers are sequential with no repeats |
+
+## Pipeline Context
+
+Skills created by this factory are consumed by the PR Code Review Validator pipeline:
+
+1. On every PR, the pipeline orchestrator scans `.claude/skills/*/SKILL.md`
+2. For each skill, it reads the `## Scope` section to determine which files match
+3. Changed files are matched against all skill scopes (a file can match multiple skills)
+4. For each skill with matching files, a Sonnet sub-agent validates those files against ALL rules
+5. Violations are returned as structured JSON:
+   ```json
+   {
+     "skill": "<skill-directory-name>",
+     "rule": "<rule name from SKILL.md>",
+     "scope": "<domain>",
+     "path": "<relative file path>",
+     "line": "<line number>",
+     "description": "<what violates the rule and why>",
+     "suggestion": "<specific actionable fix>",
+     "severity": "Critical | Recommended"
+   }
+   ```
+6. An Opus synthesis agent filters false positives and posts the review to GitHub
+
+The sub-agent reads ONLY the skill's own files to perform validation. Each skill must be fully self-contained.
+
+## Constraints
+
+- Never create a skill with 0 rules
+- Never set severity to anything other than "Critical" or "Recommended"
+- Never create inter-skill dependencies (each skill stands alone)
+- If a skill would need more than 10 rules, suggest splitting into multiple skills
+- Always ask at least 2 clarifying questions before proposing a skill
+- Always get user confirmation before writing files
+- Always run structural validation before committing
+- Always commit after successful creation/edit

@@ -49,9 +49,19 @@ SKIPJSON
   echo "$prompt" > "$prompt_file"
 
   local raw_output="$ARTIFACT_DIR/raw-output-full.json"
+  local stderr_log="$ARTIFACT_DIR/cli-stderr.log"
   echo "Invoking Claude Code CLI (model: $MODEL_CLASSIFY, timeout: ${TIMEOUT_FULL_PIPELINE}s)..."
-  if ! timeout "$TIMEOUT_FULL_PIPELINE" claude --print --model "$MODEL_CLASSIFY" --output-format json < "$prompt_file" > "$raw_output"; then
+  echo "DEBUG: ANTHROPIC_BEDROCK_BASE_URL=${ANTHROPIC_BEDROCK_BASE_URL:-unset}"
+  echo "DEBUG: CLAUDE_CODE_USE_BEDROCK=${CLAUDE_CODE_USE_BEDROCK:-unset}"
+  echo "DEBUG: CLAUDE_CODE_SKIP_BEDROCK_AUTH=${CLAUDE_CODE_SKIP_BEDROCK_AUTH:-unset}"
+  echo "DEBUG: ANTHROPIC_CUSTOM_HEADERS=${ANTHROPIC_CUSTOM_HEADERS:-unset}"
+  if ! timeout "$TIMEOUT_FULL_PIPELINE" claude --print --model "$MODEL_CLASSIFY" --output-format json < "$prompt_file" > "$raw_output" 2>"$stderr_log"; then
     echo "ERROR: CLI invocation failed or timed out"
+    echo "--- stderr output ---"
+    cat "$stderr_log" || true
+    echo "--- raw output (first 500 chars) ---"
+    head -c 500 "$raw_output" || true
+    echo ""
     return 1
   fi
 

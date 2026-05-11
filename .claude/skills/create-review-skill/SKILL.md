@@ -206,3 +206,80 @@ Display:
   Changes: <summary of what changed>
   Rules: N rules (X Critical, Y Recommended)
 ```
+
+## SKILL.md Template
+
+When generating a new skill, use this exact structure:
+
+```
+---
+name: {skill-name}
+description: {one-line description of what this skill checks}
+when_to_use: "TRIGGER when: files match {scope patterns}. SKIP when: {exclusions}"
+effort: medium
+user-invocable: false
+---
+
+# {Skill Display Name}
+
+## Scope
+
+**Applies to:** {glob patterns} (e.g., `**/*.ts`, `src/api/**`)
+**Excludes:** {exclusion patterns} (e.g., `*.test.*`, `*.spec.*`, `__mocks__/`)
+**Extensions:** {list} (e.g., .ts, .tsx, .py)
+
+## Rules
+
+### Rule 1: {Name}
+**Severity:** {Critical | Recommended}
+**Description:** {what this rule checks for}
+**Violation:** {condition that triggers a finding}
+**Correct:** {what compliant code looks like}
+
+**Example violation:**
+{fenced code block in target language showing bad code}
+
+**Example fix:**
+{fenced code block in target language showing corrected code}
+```
+
+Repeat the Rule section for each rule. Number sequentially (Rule 1, Rule 2, ...).
+
+## reference.md Template
+
+When generating a reference doc, use this structure:
+
+```
+# {Skill Display Name} — Reference
+
+## Extended Examples
+
+### {Rule Name}
+
+#### Edge Case: {description}
+{code example showing the edge case and how to handle it}
+
+#### Anti-Pattern: {description}
+{code example showing what NOT to do and why}
+
+## FAQ
+
+### Q: {common question about when the rule applies}
+A: {clear answer with example if helpful}
+```
+
+Offer to create reference.md when:
+- The skill has more than 3 rules
+- Rules have complex edge cases discussed during brainstorming
+- The user provides many examples that don't fit in the main SKILL.md
+- The domain requires extended explanation for sub-agents to validate correctly
+
+## Naming Convention
+
+Skill names MUST be:
+- kebab-case (lowercase, hyphens between words)
+- Descriptive of what the skill checks (not what it allows)
+- Unique within the project
+- 2-4 words typical
+
+Examples: `no-console-log`, `api-error-boundaries`, `parameterized-queries`, `react-hooks-rules`, `no-hardcoded-secrets`

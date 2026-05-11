@@ -24,8 +24,10 @@ readonly MODEL_SYNTHESIZE="opus"
 
 # Returns 0 if the file has a code extension, 1 otherwise
 is_code_file() {
-  local file="$1"
+  local file="${1:-}"
+  [[ -z "$file" ]] && return 1
   local ext="${file##*.}"
+  [[ "$file" == "$ext" ]] && return 1
   for code_ext in $CODE_EXTENSIONS; do
     if [[ "$ext" == "$code_ext" ]]; then
       return 0

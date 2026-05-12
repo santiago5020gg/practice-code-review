@@ -26,30 +26,6 @@ Creating review skills manually is error-prone and requires intimate knowledge o
 
 ## Architecture
 
-### Why Interactive (not template-based)
-
-A template approach (fill-in-the-blanks YAML) was considered. Problems:
-- Users don't know what makes a good rule until they think through edge cases.
-- Templates produce vague rules ("code should be clean") that generate false positives.
-- No opportunity to refine scope, severity, or exceptions.
-
-The interactive approach ensures every skill has been thought through before creation.
-
-### Why Mandatory Brainstorming
-
-The first description a user gives is always incomplete. Examples:
-- "No console.log" → What about debug builds? What about server-side logging? What about test files?
-- "All components need types" → Props types? Return types? Internal state types? Third-party components?
-
-Requiring at least 2 clarifying questions before generating ensures the skill covers real-world edge cases and doesn't produce excessive false positives.
-
-### Why Self-Contained Skills
-
-Each skill must be readable by a sub-agent in isolation. No cross-skill dependencies because:
-- Sub-agents may run in parallel with different skill assignments
-- A broken skill should not affect other skills
-- Skills can be added/removed independently
-
 ### Factory Flow
 
 ```

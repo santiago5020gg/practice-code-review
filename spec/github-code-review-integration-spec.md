@@ -28,12 +28,7 @@ Pull requests were being merged without thorough review. Reviews were either sup
 
 ## Architecture
 
-### Why Multi-Agent (not single model)
-
-A single Opus call for the entire review was considered first. Problems:
-- **Cost:** Opus pricing on every PR for classification + validation + synthesis is prohibitively expensive at scale.
-- **Latency:** A single large prompt with all files and all rules takes too long (~5+ min).
-- **Context limits:** Large PRs exceed context windows when everything is in one call.
+### Multi-Agent
 
 The multi-agent approach delegates each stage to the cheapest capable model:
 
@@ -52,23 +47,12 @@ The multi-agent approach delegates each stage to the cheapest capable model:
 - **Code file extensions reviewed:** `.ts`, `.tsx`, `.js`, `.jsx`, `.prisma`, `.sql`
 - **Timeouts:** 10 minutes workflow total, 540s full pipeline, 180s Track 1 verification
 
-### Why Portkey + AWS Bedrock (not direct Anthropic API)
+### Portkey + AWS Bedrock (not direct Anthropic API)
 
 Corporate policy at Perficient requires all AI traffic to route through an approved gateway. Portkey provides:
 - Centralized billing under the org's AWS account
 - Audit trail for compliance
 - Model routing via short names (no Bedrock ARN management)
-
-### Why Fail-Closed
-
-The cost of a false negative (missed bug in production) far exceeds the cost of a false positive (developer dismisses a comment). Therefore:
-- Pipeline crash → REQUEST_CHANGES
-- Invalid output → REQUEST_CHANGES
-- Timeout → REQUEST_CHANGES
-
-### Why Skills as Extension Point
-
-The pipeline infrastructure (workflow, scripts, prompts) should be stable. What changes frequently is *what to check for*. Skills isolate domain knowledge into self-contained Markdown files that sub-agents read at runtime. Adding a skill requires zero infrastructure changes.
 
 ### Pipeline Flow
 
@@ -103,11 +87,7 @@ PR Event (opened/synchronize/reopened)
 
 ## Interfaces
 
-### 1. Skill File Contract
-
-Any skill at `.claude/skills/<name>/SKILL.md` must be self-contained — a sub-agent validates code by reading ONLY that file.
-
-### 2. Validation Sub-Agent Output (Stage 2 → Stage 3)
+### 1. Validation Sub-Agent Output (Stage 2 → Stage 3)
 
 ```json
 [
@@ -124,7 +104,7 @@ Any skill at `.claude/skills/<name>/SKILL.md` must be self-contained — a sub-a
 ]
 ```
 
-### 3. Final Pipeline Output (→ post-review.sh)
+### 2. Final Pipeline Output (→ post-review.sh)
 
 ```json
 {
@@ -144,7 +124,7 @@ Any skill at `.claude/skills/<name>/SKILL.md` must be self-contained — a sub-a
 }
 ```
 
-### 4. Violations Artifact (persisted between runs)
+### 3. Violations Artifact (persisted between runs)
 
 ```json
 {
@@ -166,7 +146,7 @@ Any skill at `.claude/skills/<name>/SKILL.md` must be self-contained — a sub-a
 }
 ```
 
-### 5. GitHub Review API Contract
+### 4. GitHub Review API Contract
 
 - Single bundled review (one notification to PR author)
 - Event: `REQUEST_CHANGES` (fail) | `COMMENT` (pass/skip)

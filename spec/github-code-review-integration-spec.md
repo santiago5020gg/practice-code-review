@@ -14,7 +14,7 @@ Pull requests were being merged without thorough review. Reviews were either sup
 
 1. **Consistency** — Every PR is validated against the same criteria, regardless of who pushes or when. No PR slips through without review.
 2. **Extensibility** — New review rules (skills) can be added by any developer without modifying pipeline infrastructure.
-3. **Cost efficiency** — Use the cheapest model capable of each task (classify cheaply, validate accurately, synthesize intelligently).
+3. **Cost efficiency** — Use the cheapest model capable of each task (validate accurately, synthesize intelligently).
 4. **Fail-closed safety** — If the system fails, it blocks the PR rather than silently approving. False positives are preferable to missed bugs.
 5. **Incremental efficiency** — On subsequent pushes, only re-validate what changed. Don't waste tokens re-reviewing untouched code.
 
@@ -28,15 +28,13 @@ Pull requests were being merged without thorough review. Reviews were either sup
 
 ## Architecture
 
-### Multi-Agent
+### Pipeline Stages
 
-The multi-agent approach delegates each stage to the cheapest capable model:
-
-| Stage | Model | Why this model |
-|-------|-------|----------------|
-| Classification | Haiku | Simple routing task — fast, cheap |
-| Validation | Sonnet | Needs code comprehension but rules are explicit |
-| Synthesis | Opus | Needs judgment to filter false positives |
+| Stage | Executor | What it does |
+|-------|----------|--------------|
+| File collection | Bash script | git diff + filter by extension |
+| Validation | Sonnet | Reads files + skills, outputs violations JSON |
+| Synthesis | Opus (only if violations found) | Filters false positives, formats final review |
 
 ### Runtime Environment
 
@@ -65,13 +63,13 @@ PR Event (opened/synchronize/reopened)
   │
   ├─ run-review-pipeline.sh
   │     │
-  │     ├─ Stage 1: Classification (Haiku)
-  │     │     Filter non-code → classify by domain → trace related files
+  │     ├─ File Collection (bash script)
+  │     │     git diff → filter by code extensions → list of files to review
   │     │
-  │     ├─ Stage 2: Validation (Sonnet sub-agents)
-  │     │     One agent per domain → read skill files → output violations JSON
+  │     ├─ Validation (Sonnet)
+  │     │     Read all files + all skills → output violations JSON
   │     │
-  │     └─ Stage 3: Synthesis (Opus, only if violations found)
+  │     └─ Synthesis (Opus, only if violations found)
   │           Filter false positives → format inline comments → final verdict
   │
   └─ post-review.sh → post bundled review to GitHub + save artifact
@@ -87,14 +85,13 @@ PR Event (opened/synchronize/reopened)
 
 ## Interfaces
 
-### 1. Validation Sub-Agent Output (Stage 2 → Stage 3)
+### 1. Validation Output (Sonnet → Opus)
 
 ```json
 [
   {
     "skill": "<skill-name>",
     "rule": "<rule/category name>",
-    "scope": "frontend | backend",
     "path": "relative/path.ts",
     "line": 15,
     "description": "What violates the rule and why",
@@ -116,7 +113,6 @@ PR Event (opened/synchronize/reopened)
   "stats": {
     "files_checked": 0,
     "files_changed": 0,
-    "files_related": 0,
     "skills_applied": [],
     "violations_found": 0,
     "false_positives_filtered": 0

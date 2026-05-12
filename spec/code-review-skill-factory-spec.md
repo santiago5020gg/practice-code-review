@@ -8,7 +8,7 @@
 
 ## Problem
 
-Creating review skills manually is error-prone and requires intimate knowledge of the pipeline's internal structure (JSON schemas, sub-agent configuration, classification routing). This makes it inaccessible to most developers on the team who want to add review rules but don't maintain the pipeline infrastructure.
+Creating review skills manually is error-prone and requires intimate knowledge of the pipeline's internal structure (JSON schemas, sub-agent configuration). This makes it inaccessible to most developers on the team who want to add review rules but don't maintain the pipeline infrastructure.
 
 ## Goals
 
@@ -41,23 +41,10 @@ User describes intent (natural language)
   ├─ Generate SKILL.md
   │     Frontmatter + rules + examples + scope
   │
-  ├─ Configure sub-agent
-  │     How many agents? (default: 1)
-  │     Which paths/patterns?
-  │
   └─ Integration
-        Classification mapping + sub-agent prompt → active on next PR
+        Skill file placed in .claude/skills/ → active on next PR
 ```
 
-### Cost-Aware Agent Recommendations
-
-When deciding sub-agent count for a new skill:
-
-| Condition | Recommendation | Reason |
-|-----------|---------------|--------|
-| < 10 rules | 1 agent | Lower token cost, simpler orchestration |
-| 10+ rules OR many files in scope | 2-3 agents | Parallel validation, faster execution |
-| Never | > 3 agents | Diminishing returns, complexity overhead |
 
 ## Interfaces
 
@@ -111,26 +98,7 @@ Applies to files matching: <glob patterns>
 
 Each rule must include: severity, description, violation criteria, correct pattern, example violation code, and example fix code.
 
-### 3. Output: Classification Mapping
-
-```json
-{
-  "skill": "<skill-name>",
-  "paths": ["src/api/", "lib/"],
-  "extensions": [".ts", ".tsx"],
-  "excludes": ["*.test.*", "*.spec.*"],
-  "agents": 1
-}
-```
-
-### 4. Output: Sub-Agent Prompt Segment
-
-Injected into Stage 2 of the pipeline. Tells the sub-agent:
-- Which skill files to read
-- Which files to validate
-- Output format (standard violation JSON schema)
-
-### 5. Relationship to Pipeline
+### 3. Relationship to Pipeline
 
 ```
 ┌─────────────────────────────┐

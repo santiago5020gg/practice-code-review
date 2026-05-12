@@ -1,5 +1,11 @@
 # GitHub Code Review Integration — Design Spec
 
+> **Purpose:** This spec is the blueprint for building the entire code review pipeline from scratch. Give this document to Claude and it should produce: a GitHub Actions workflow, shell scripts, prompt templates, and all infrastructure needed to automatically review PRs using a multi-agent AI pipeline.
+>
+> **Prerequisite:** A GitHub repository with code files to review. No prior AI infrastructure required.
+>
+> **Related:** Once this pipeline is running, use `code-review-skill-factory-spec.md` to build the skill that lets any developer create new review rules.
+
 ## Problem
 
 Pull requests were being merged without thorough review. Reviews were either superficial (quick "LGTM" approvals) or entirely absent due to time constraints and resource limitations. This led to inconsistent code quality, undetected security issues, and architectural drift across the codebase.
@@ -36,6 +42,15 @@ The multi-agent approach delegates each stage to the cheapest capable model:
 | Classification | Haiku | Simple routing task — fast, cheap |
 | Validation | Sonnet | Needs code comprehension but rules are explicit |
 | Synthesis | Opus | Needs judgment to filter false positives |
+
+### Runtime Environment
+
+- **CI Runtime:** GitHub Actions (ubuntu-latest)
+- **AI Gateway:** Portkey → AWS Bedrock (Claude models)
+- **CLI:** Claude Code CLI (`@anthropic-ai/claude-code`), invoked in print mode
+- **Tools required:** `gh` CLI (GitHub API), `jq` (JSON processing)
+- **Code file extensions reviewed:** `.ts`, `.tsx`, `.js`, `.jsx`, `.prisma`, `.sql`
+- **Timeouts:** 10 minutes workflow total, 540s full pipeline, 180s Track 1 verification
 
 ### Why Portkey + AWS Bedrock (not direct Anthropic API)
 

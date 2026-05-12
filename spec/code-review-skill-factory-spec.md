@@ -1,5 +1,11 @@
 # Code Review Skill Factory — Design Spec
 
+> **Purpose:** This spec is the blueprint for building a Claude Code skill. Give this document to Claude and it should produce: a skill file (`.claude/skills/create-review-skill/SKILL.md`) that, when invoked via `/create-review-skill`, interactively guides any developer through creating new code review skills for the pipeline.
+>
+> **Prerequisite:** The code review pipeline from `github-code-review-integration-spec.md` must already be built and running. This skill produces review rules that plug into that pipeline.
+>
+> **Related:** Build the pipeline first using `github-code-review-integration-spec.md`, then use this spec to create the skill factory.
+
 ## Problem
 
 Creating review skills manually is error-prone and requires intimate knowledge of the pipeline's internal structure (JSON schemas, sub-agent configuration, classification routing). This makes it inaccessible to most developers on the team who want to add review rules but don't maintain the pipeline infrastructure.
@@ -88,6 +94,8 @@ Free-text description of what the review should check for. Examples:
 
 ### 2. Output: Skill File (`.claude/skills/<name>/SKILL.md`)
 
+The generated skill must follow the Claude Code skill format:
+
 ```yaml
 ---
 name: <kebab-case-name>
@@ -98,7 +106,34 @@ user-invocable: false
 ---
 ```
 
-Followed by: Scope, Rules (numbered), each with severity, description, violation criteria, example violation code, example fix code.
+Body structure (all sections required):
+
+```markdown
+# <Skill Display Name>
+
+## Scope
+Applies to files matching: <glob patterns>
+
+## Rules
+
+### Rule 1: <Name>
+**Severity:** Critical | Recommended
+**Description:** <what this rule checks>
+**Violation:** <what triggers a finding>
+**Correct:** <what the code should look like>
+
+**Example violation:**
+\```typescript
+// bad code
+\```
+
+**Example fix:**
+\```typescript
+// good code
+\```
+```
+
+Each rule must include: severity, description, violation criteria, correct pattern, example violation code, and example fix code.
 
 ### 3. Output: Classification Mapping
 

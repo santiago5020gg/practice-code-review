@@ -52,6 +52,75 @@ Corporate policy at Perficient requires all AI traffic to route through an appro
 - Audit trail for compliance
 - Model routing via short names (no Bedrock ARN management)
 
+### Connection Setup
+
+**GitHub Repository Secrets (required):**
+
+| Secret | What it is | Where to get it |
+|--------|-----------|-----------------|
+| `BEDROCK_BASE_URL` | Portkey gateway URL (NOT a raw Bedrock endpoint) | Portkey dashboard → Gateway → Base URL |
+| `PORTKEY_API_KEY` | API key for authenticating with Portkey | Portkey dashboard → API Keys |
+
+These must be set as **Repository Secrets** (not Environment Secrets).
+
+**Environment variables set in the workflow:**
+
+```yaml
+ANTHROPIC_BEDROCK_BASE_URL: "${{ secrets.BEDROCK_BASE_URL }}"
+ANTHROPIC_CUSTOM_HEADERS: "x-portkey-api-key:${{ secrets.PORTKEY_API_KEY }}\nx-portkey-provider:@aws-bedrock-use2"
+CLAUDE_CODE_USE_BEDROCK: "1"
+CLAUDE_CODE_SKIP_BEDROCK_AUTH: "1"
+```
+
+**Model names in CLI invocations:**
+
+Always use short names — Portkey resolves them to Bedrock model ARNs:
+- `sonnet` → Validation stage
+- `opus` → Synthesis stage
+
+Do NOT use full model IDs (e.g., `us.anthropic.claude-sonnet-4-6-v1`). Portkey will return 400 errors.
+
+**CLI invocation pattern:**
+
+```bash
+claude --print --model <model> --output-format json < prompt.txt > output.json
+```
+
+**Common errors:**
+- 403 "Forbidden" → Invalid `PORTKEY_API_KEY` or wrong `BEDROCK_BASE_URL`
+- 400 "invalid model" → Using full model ID instead of short name
+- 3-minute timeout with no output → Secrets misconfigured (silent auth failure)
+
+### Project Structure
+
+```
+.github/
+└── workflows/
+    └── pr-code-review-validator.yml   — GitHub Actions workflow definition
+
+scripts/
+├── lib/
+│   ├── common.sh                      — Shared constants (extensions, markers, colors)
+│   └── json-extract.sh                — Multi-strategy JSON extraction from CLI output
+├── detect-review-mode.sh              — Decides FULL vs INCREMENTAL mode
+├── cleanup-prior-reviews.sh           — Dismisses/minimizes old bot reviews
+├── run-review-pipeline.sh             — Orchestrates validation + synthesis
+└── post-review.sh                     — Posts review to GitHub, writes artifact
+
+prompts/
+├── pipeline-full.md                   — Prompt template for full validation
+├── pipeline-incremental-track2.md     — Prompt template for Track 2 (new files)
+└── verification-track1.md             — Prompt template for Track 1 (re-verify)
+
+.claude/
+└── skills/                            — Review skills (read by Sonnet at runtime)
+    └── <skill-name>/
+        └── SKILL.md                   — Self-contained rule definitions
+
+.review-artifacts/
+└── violations.json                    — Persisted violations between runs (artifact)
+```
+
 ### Pipeline Flow
 
 ```

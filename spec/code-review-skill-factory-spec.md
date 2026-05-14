@@ -13,7 +13,7 @@ Creating review skills manually is error-prone and requires intimate knowledge o
 ## Goals
 
 1. **Democratized skill creation** — Any developer on the team can create a new review skill without understanding pipeline internals.
-2. **Guided refinement** — Initial rule descriptions are always incomplete. The factory must ask clarifying questions before generating a skill (mandatory brainstorming).
+2. **Guided refinement** — Initial rule descriptions are always incomplete. The factory must ask clarifying questions **one at a time** before generating a skill (mandatory brainstorming). One question per message, prefer multiple-choice, wait for the user's answer before proceeding.
 3. **Correct by construction** — Generated skills must conform to the exact schema the pipeline expects. No manual JSON wiring.
 4. **Automatic integration** — Once a skill is created, it's immediately active on the next PR. No separate deployment step.
 
@@ -31,7 +31,9 @@ Creating review skills manually is error-prone and requires intimate knowledge o
 ```
 User describes intent (natural language)
   │
-  ├─ Clarifying questions (minimum 2)
+  ├─ Clarifying questions (minimum 2, ONE AT A TIME)
+  │     One question per message. Wait for answer before next.
+  │     Prefer multiple-choice options over open-ended.
   │     What file types? What counts as violation?
   │     What severity? What exceptions?
   │

@@ -1,11 +1,19 @@
+---
+name: qa-page-render-check
+description: QA tester that visually verifies page rendering, scrolling, console errors, and CSS classes via chrome-devtools MCP
+when_to_use: "TRIGGER when: user requests QA testing or page render verification for the hello-app. SKIP when: user wants code review or static analysis."
+effort: medium
+user-invocable: true
+---
+
 # QA Page Render Check
 
-<Role>
-You are a QA tester reviewer. Your job is to verify that pages render correctly,
-elements are visible, scrolling works without errors, and CSS classes are applied as expected.
-</Role>
+## Role
 
-<Context>
+You are a QA tester reviewer. Your job is to verify that pages render correctly, elements are visible, scrolling works without errors, and CSS classes are applied as expected.
+
+## Context
+
 The application under test is a Next.js app located at:
 `hello-app/src/app/`
 
@@ -14,17 +22,14 @@ Pages to validate:
 - `/hello` — displays a greeting message
 
 The dev server must be running at `http://localhost:3000` before testing begins.
-</Context>
 
-<Criteria>
-1. Use the MCP `chrome-devtools` tool to open a new browser window before running any checks.
-2. Follow the skill conventions defined at https://agentskills.io/home for structure and formatting.
-3. Every assertion must be performed visually through the browser — do not rely on reading source code alone.
-4. Generate a QA report at the end with findings and total testing time.
-5. this does not have to do with anything about create-review-skill.
-</Criteria>
+## Prerequisites
 
-<Instructions>
+- Dev server running at `http://localhost:3000`
+- `chrome-devtools` MCP server available and connected
+
+## Instructions
+
 1. Open a new browser window via `chrome-devtools`.
 2. Navigate to `http://localhost:3000/todos`.
 3. Verify the page renders without console errors.
@@ -34,12 +39,15 @@ The dev server must be running at `http://localhost:3000` before testing begins.
 7. Verify that checked items use a `<span>` with classes: `w-4 h-4 rounded border bg-green-500 border-green-600`.
 8. Navigate to `http://localhost:3000/hello`.
 9. Verify the page renders correctly and displays the text "Hello!".
-</Instructions>
 
-<Output>
+## Assertions
+
+Every assertion must be performed visually through the browser — do not rely on reading source code alone.
+
+## Output
+
 Create folder `hello-app/report-QA/` if it does not exist.
 Write a report file (`hello-app/report-QA/report.md`) with:
 - **Pages Reviewed** — list each page tested with URL
 - **Issues Found** — list any failures, console errors, or anomalies per page
 - **Total testing time** — elapsed time from first browser open to last assertion
-</Output>
